@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Tracker Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="header">
+    <h1>💰 Crypto Tracker Dashboard</h1>
+    <p>Live cryptocurrency market data</p>
+  </header>
+
+  <main class="container">
+    <section class="top-bar">
+      <button id="refreshBtn">🔄 Refresh Data</button>
+    </section>
+
+    <section id="loading" class="loading">
+      <div class="spinner"></div>
+      <p>Fetching crypto data...</p>
+    </section>
+
+    <section id="error" class="error hidden">
+      <p>❌ Failed to load data. Please try again.</p>
+    </section>
+
+    <section id="cryptoContainer" class="crypto-grid">
+      <!-- Crypto cards will appear here -->
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

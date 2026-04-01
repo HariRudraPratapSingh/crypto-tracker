@@ -1,6 +1,6 @@
-# 💰 Crypto Tracker Dashboard
+#  Crypto Tracker Dashboard
 
-## 📌 Project Overview
+##  Project Overview
 
 **Crypto Tracker Dashboard** is a web application that allows users to explore real-time cryptocurrency data in an interactive and user-friendly interface. Built using a public API, the app transforms raw crypto market data into a structured dashboard where users can search, filter, sort, and analyze different cryptocurrencies.
 
@@ -8,7 +8,7 @@ This project helps users gain early exposure to how financial markets work by vi
 
 ---
 
-## 🎯 Purpose
+## Purpose
 
 The world of cryptocurrency and trading is growing rapidly, but understanding market movements and tracking assets can be overwhelming for beginners.
 
@@ -26,7 +26,7 @@ This application is ideal for:
 
 ---
 
-## 🌐 API Used
+## API Used
 
 **CoinGecko API**
 
