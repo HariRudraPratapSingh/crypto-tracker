@@ -1,36 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Crypto Tracker Dashboard</title>
+  <title>Crypto Tracker</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-  <header class="header">
-    <h1>💰 Crypto Tracker Dashboard</h1>
-    <p>Live cryptocurrency market data</p>
+
+<body id="body">
+  <header>
+    <h1>💰 Crypto Tracker</h1>
+    <p>Live cryptocurrency prices</p>
+    <button id="themeBtn" onclick="toggleTheme()">🌙 Dark Mode</button>
   </header>
 
-  <main class="container">
-    <section class="top-bar">
-      <button id="refreshBtn">🔄 Refresh Data</button>
-    </section>
 
-    <section id="loading" class="loading">
-      <div class="spinner"></div>
-      <p>Fetching crypto data...</p>
-    </section>
+  <div class="controls">
 
-    <section id="error" class="error hidden">
-      <p>❌ Failed to load data. Please try again.</p>
-    </section>
+    <input type="text" id="searchInput" placeholder="🔍 Search by name or symbol..." oninput="applyAll()" />
 
-    <section id="cryptoContainer" class="crypto-grid">
-      <!-- Crypto cards will appear here -->
-    </section>
-  </main>
+
+    <select id="filterSelect" onchange="applyAll()">
+      <option value="all">All Coins</option>
+      <option value="gainers">📈 Gainers Only</option>
+      <option value="losers">📉 Losers Only</option>
+      <option value="top10">⭐ Top 10</option>
+      <option value="favorites">❤️ Favorites</option>
+    </select>
+
+
+    <select id="sortSelect" onchange="applyAll()">
+      <option value="rank">Sort: Rank</option>
+      <option value="price_high">Sort: Price High→Low</option>
+      <option value="price_low">Sort: Price Low→High</option>
+      <option value="change_high">Sort: Change High→Low</option>
+      <option value="change_low">Sort: Change Low→High</option>
+      <option value="name_az">Sort: Name A→Z</option>
+      <option value="name_za">Sort: Name Z→A</option>
+    </select>
+
+    <button onclick="loadData()">🔄 Refresh</button>
+
+  </div>
+
+  <p id="resultInfo" class="result-info"></p>
+
+  <p id="loading">⏳ Loading data...</p>
+  <p id="errorMsg" class="hidden">❌ Failed to load. Check your connection.</p>
+
+  <div id="cardContainer"></div>
 
   <script src="script.js"></script>
 </body>
+
 </html>
