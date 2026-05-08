@@ -1,189 +1,648 @@
-var allCoins = [];
-var favorites = [];
-var isLightMode = false;
+/* =========================================================
+   OrbitIQ — script.js
+   Modules: Stars | ISS Tracker | News | Chatbot | Analytics
+   ========================================================= */
 
-var API_URL = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false";
+// ── Global State ──────────────────────────────────────────
+const state = {
+  issData: null,
+  crewData: [],
+  newsArticles: [],
+  newsOffset: 0,
+  newsCategory: 'all',
+  velocityHistory: [],
+  altitudeHistory: [],
+  issMap: null,
+  issMarker: null,
+  issTrail: null,
+  trailPoints: [],
+  charts: {},
+  chatHistory: [],
+  refreshInterval: null,
+};
 
-var sampleData = [
-  { id: "bitcoin", name: "Bitcoin", symbol: "btc", image: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png", current_price: 83000, market_cap: 1640000000000, total_volume: 28000000000, price_change_percentage_24h: 2.15, market_cap_rank: 1, ath: 108000, circulating_supply: 19700000 },
-  { id: "ethereum", name: "Ethereum", symbol: "eth", image: "https://assets.coingecko.com/coins/images/279/large/ethereum.png", current_price: 1580, market_cap: 190000000000, total_volume: 12000000000, price_change_percentage_24h: -1.42, market_cap_rank: 2, ath: 4878, circulating_supply: 120000000 },
-  { id: "tether", name: "Tether", symbol: "usdt", image: "https://assets.coingecko.com/coins/images/325/large/Tether.png", current_price: 1.00, market_cap: 144000000000, total_volume: 60000000000, price_change_percentage_24h: 0.01, market_cap_rank: 3, ath: 1.32, circulating_supply: 144000000000 },
-  { id: "binancecoin", name: "BNB", symbol: "bnb", image: "https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png", current_price: 580, market_cap: 84000000000, total_volume: 1500000000, price_change_percentage_24h: 0.85, market_cap_rank: 4, ath: 686, circulating_supply: 145000000 },
-  { id: "solana", name: "Solana", symbol: "sol", image: "https://assets.coingecko.com/coins/images/4128/large/solana.png", current_price: 120, market_cap: 58000000000, total_volume: 3000000000, price_change_percentage_24h: -3.10, market_cap_rank: 5, ath: 259, circulating_supply: 480000000 },
-  { id: "ripple", name: "XRP", symbol: "xrp", image: "https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png", current_price: 2.05, market_cap: 117000000000, total_volume: 5000000000, price_change_percentage_24h: 1.30, market_cap_rank: 6, ath: 3.84, circulating_supply: 57000000000 },
-  { id: "usd-coin", name: "USDC", symbol: "usdc", image: "https://assets.coingecko.com/coins/images/6319/large/usdc.png", current_price: 1.00, market_cap: 43000000000, total_volume: 8000000000, price_change_percentage_24h: 0.02, market_cap_rank: 7, ath: 1.17, circulating_supply: 43000000000 },
-  { id: "dogecoin", name: "Dogecoin", symbol: "doge", image: "https://assets.coingecko.com/coins/images/5/large/dogecoin.png", current_price: 0.165, market_cap: 24000000000, total_volume: 1200000000, price_change_percentage_24h: -2.50, market_cap_rank: 8, ath: 0.7376, circulating_supply: 145000000000 },
-  { id: "cardano", name: "Cardano", symbol: "ada", image: "https://assets.coingecko.com/coins/images/975/large/cardano.png", current_price: 0.62, market_cap: 22000000000, total_volume: 600000000, price_change_percentage_24h: 1.75, market_cap_rank: 9, ath: 3.09, circulating_supply: 35000000000 },
-  { id: "tron", name: "TRON", symbol: "trx", image: "https://assets.coingecko.com/coins/images/1094/large/tron-logo.png", current_price: 0.22, market_cap: 19000000000, total_volume: 900000000, price_change_percentage_24h: 0.55, market_cap_rank: 10, ath: 0.3004, circulating_supply: 87000000000 },
-  { id: "avalanche-2", name: "Avalanche", symbol: "avax", image: "https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png", current_price: 19.50, market_cap: 8000000000, total_volume: 350000000, price_change_percentage_24h: -4.20, market_cap_rank: 11, ath: 146, circulating_supply: 410000000 },
-  { id: "polkadot", name: "Polkadot", symbol: "dot", image: "https://assets.coingecko.com/coins/images/12171/large/polkadot.png", current_price: 3.80, market_cap: 5800000000, total_volume: 200000000, price_change_percentage_24h: -1.10, market_cap_rank: 12, ath: 54.98, circulating_supply: 1530000000 },
-  { id: "chainlink", name: "Chainlink", symbol: "link", image: "https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png", current_price: 12.50, market_cap: 7600000000, total_volume: 450000000, price_change_percentage_24h: 3.40, market_cap_rank: 13, ath: 52.88, circulating_supply: 608000000 },
-  { id: "shiba-inu", name: "Shiba Inu", symbol: "shib", image: "https://assets.coingecko.com/coins/images/11939/large/shiba.png", current_price: 0.0000122, market_cap: 7200000000, total_volume: 310000000, price_change_percentage_24h: -0.80, market_cap_rank: 14, ath: 0.00008845, circulating_supply: 589000000000000 },
-  { id: "litecoin", name: "Litecoin", symbol: "ltc", image: "https://assets.coingecko.com/coins/images/2/large/litecoin.png", current_price: 82, market_cap: 6100000000, total_volume: 280000000, price_change_percentage_24h: 1.95, market_cap_rank: 15, ath: 410, circulating_supply: 74000000 },
-  { id: "uniswap", name: "Uniswap", symbol: "uni", image: "https://assets.coingecko.com/coins/images/12504/large/uniswap-uni.png", current_price: 5.40, market_cap: 4100000000, total_volume: 180000000, price_change_percentage_24h: 2.60, market_cap_rank: 16, ath: 44.97, circulating_supply: 760000000 },
-  { id: "stellar", name: "Stellar", symbol: "xlm", image: "https://assets.coingecko.com/coins/images/100/large/Stellar_symbol_black_RGB.png", current_price: 0.27, market_cap: 8400000000, total_volume: 220000000, price_change_percentage_24h: -0.45, market_cap_rank: 17, ath: 0.8752, circulating_supply: 31000000000 },
-  { id: "monero", name: "Monero", symbol: "xmr", image: "https://assets.coingecko.com/coins/images/69/large/monero_logo.png", current_price: 215, market_cap: 3900000000, total_volume: 140000000, price_change_percentage_24h: 0.70, market_cap_rank: 18, ath: 542, circulating_supply: 18500000 },
-  { id: "ethereum-classic", name: "Ethereum Classic", symbol: "etc", image: "https://assets.coingecko.com/coins/images/453/large/ethereum-classic-logo.png", current_price: 17.80, market_cap: 2600000000, total_volume: 130000000, price_change_percentage_24h: -2.00, market_cap_rank: 19, ath: 167, circulating_supply: 146000000 },
-  { id: "filecoin", name: "Filecoin", symbol: "fil", image: "https://assets.coingecko.com/coins/images/12817/large/filecoin.png", current_price: 2.85, market_cap: 1700000000, total_volume: 95000000, price_change_percentage_24h: -3.50, market_cap_rank: 20, ath: 236, circulating_supply: 600000000 }
-];
+// ── INIT ─────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  initStars();
+  startUTCClock();
+  simulateLoader(() => {
+    document.getElementById('loadingScreen').classList.add('hidden');
+    initMap();
+    fetchISSData();
+    fetchCrew();
+    loadNews();
+    loadCrewSection();
+    startAutoRefresh();
+    initCharts();
+    showToast('✅ Live data connected', 'success');
+  });
+});
 
-function loadData() {
-  document.getElementById("loading").classList.remove("hidden");
-  document.getElementById("errorMsg").classList.add("hidden");
-  document.getElementById("cardContainer").innerHTML = "";
-  document.getElementById("resultInfo").textContent = "";
-
-  fetch(API_URL)
-    .then(function(response) {
-      return response.json();
-    })
-    .then(function(data) {
-      allCoins = data;
-      document.getElementById("loading").classList.add("hidden");
-      applyAll();
-    })
-    .catch(function(error) {
-      console.error("API failed, using sample data:", error);
-      allCoins = sampleData;
-      document.getElementById("loading").classList.add("hidden");
-      document.getElementById("resultInfo").textContent = "⚠️ Live data unavailable — showing sample data";
-      applyAll();
-    });
+// ── LOADER ────────────────────────────────────────────────
+function simulateLoader(cb) {
+  setTimeout(cb, 2400);
 }
 
-function applyAll() {
-  var searchText = document.getElementById("searchInput").value.toLowerCase();
-  var filterValue = document.getElementById("filterSelect").value;
-  var sortValue = document.getElementById("sortSelect").value;
+// ── UTC CLOCK ─────────────────────────────────────────────
+function startUTCClock() {
+  const el = document.getElementById('utcClock');
+  const tick = () => {
+    const now = new Date();
+    el.textContent = now.toUTCString().split(' ')[4];
+  };
+  tick();
+  setInterval(tick, 1000);
+}
 
-  var searched = allCoins.filter(function(coin) {
-    return coin.name.toLowerCase().includes(searchText) ||
-           coin.symbol.toLowerCase().includes(searchText);
+// ── STAR CANVAS ───────────────────────────────────────────
+function initStars() {
+  const canvas = document.getElementById('starCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let stars = [];
+  const resize = () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    stars = Array.from({ length: 200 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.4 + 0.3,
+      o: Math.random(),
+      s: Math.random() * 0.005 + 0.001,
+    }));
+  };
+  resize();
+  window.addEventListener('resize', resize);
+  const draw = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    stars.forEach(s => {
+      s.o += s.s;
+      if (s.o > 1 || s.o < 0) s.s *= -1;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${s.o})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  };
+  draw();
+}
+
+// ── SIDEBAR / NAV ─────────────────────────────────────────
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  sb.classList.toggle('open');
+  sb.classList.toggle('collapsed');
+}
+
+function switchSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + id).classList.add('active');
+  document.getElementById('nav-' + id).classList.add('active');
+  if (id === 'analytics') refreshAnalyticsCharts();
+  // close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+// ── MAP INIT ──────────────────────────────────────────────
+function initMap() {
+  const map = L.map('issMap', {
+    center: [0, 0], zoom: 2, zoomControl: false, attributionControl: false,
   });
 
-  var filtered = searched.filter(function(coin) {
-    if (filterValue === "gainers")   return coin.price_change_percentage_24h > 0;
-    if (filterValue === "losers")    return coin.price_change_percentage_24h < 0;
-    if (filterValue === "top10")     return coin.market_cap_rank <= 10;
-    if (filterValue === "favorites") return favorites.includes(coin.id);
-    return true;
+  // Dark tile layer
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+  }).addTo(map);
+
+  // ISS Icon
+  const issIcon = L.divIcon({
+    className: '',
+    html: `<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:24px;filter:drop-shadow(0 0 8px #00d4ff)">🛰️</div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
   });
 
-  var sorted = filtered.sort(function(a, b) {
-    if (sortValue === "rank")        return a.market_cap_rank - b.market_cap_rank;
-    if (sortValue === "price_high")  return b.current_price - a.current_price;
-    if (sortValue === "price_low")   return a.current_price - b.current_price;
-    if (sortValue === "change_high") return b.price_change_percentage_24h - a.price_change_percentage_24h;
-    if (sortValue === "change_low")  return a.price_change_percentage_24h - b.price_change_percentage_24h;
-    if (sortValue === "name_az")     return a.name.localeCompare(b.name);
-    if (sortValue === "name_za")     return b.name.localeCompare(a.name);
-    return 0;
+  const marker = L.marker([0, 0], { icon: issIcon }).addTo(map);
+  const trail = L.polyline([], { color: '#00d4ff', weight: 1.5, opacity: 0.5, dashArray: '4 4' }).addTo(map);
+
+  state.issMap = map;
+  state.issMarker = marker;
+  state.issTrail = trail;
+}
+
+// ── ISS DATA ──────────────────────────────────────────────
+async function fetchISSData() {
+  try {
+    // Primary: wheretheiss.at
+    const res = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
+    if (!res.ok) throw new Error('wheretheiss failed');
+    const d = await res.json();
+    updateISSDisplay({
+      latitude: d.latitude,
+      longitude: d.longitude,
+      altitude: d.altitude,
+      velocity: d.velocity,
+      visibility: d.visibility,
+    });
+  } catch {
+    // Fallback: open-notify
+    try {
+      const res = await fetch('https://api.open-notify.org/iss-now.json');
+      const d = await res.json();
+      updateISSDisplay({
+        latitude: parseFloat(d.iss_position.latitude),
+        longitude: parseFloat(d.iss_position.longitude),
+        altitude: 408,
+        velocity: 27600,
+        visibility: 'N/A',
+      });
+    } catch (e) {
+      showToast('⚠️ ISS data unavailable', 'error');
+    }
+  }
+}
+
+function updateISSDisplay(d) {
+  state.issData = d;
+
+  const lat = parseFloat(d.latitude).toFixed(4);
+  const lon = parseFloat(d.longitude).toFixed(4);
+  const alt = parseFloat(d.altitude).toFixed(1);
+  const vel = parseFloat(d.velocity).toFixed(0);
+
+  setText('issLat', lat + '°');
+  setText('issLon', lon + '°');
+  setText('issAlt', alt + ' km');
+  setText('issVel', Number(vel).toLocaleString() + ' km/h');
+  setText('issVis', d.visibility || 'Daylight');
+
+  // Remove skeleton
+  ['issLat','issLon','issAlt','issVel','issVis','issRegion'].forEach(id => {
+    document.getElementById(id)?.classList.remove('skeleton');
   });
 
-  var infoEl = document.getElementById("resultInfo");
-  if (!infoEl.textContent.includes("sample")) {
-    infoEl.textContent = "Showing " + sorted.length + " coins";
+  // Region reverse geocode (simple)
+  getRegion(lat, lon);
+
+  // Move map marker
+  if (state.issMap) {
+    const pos = [lat, lon];
+    state.issMarker.setLatLng(pos);
+    state.trailPoints.push(pos);
+    if (state.trailPoints.length > 120) state.trailPoints.shift();
+    state.issTrail.setLatLngs(state.trailPoints);
+
+    // Update popup
+    state.issMarker.bindPopup(
+      `<b>🛰️ ISS</b><br>Lat: ${lat}°<br>Lon: ${lon}°<br>Alt: ${alt} km<br>Vel: ${Number(vel).toLocaleString()} km/h`
+    );
   }
 
-  displayCards(sorted);
+  // Velocity history (for chart)
+  state.velocityHistory.push(parseFloat(vel));
+  state.altitudeHistory.push(parseFloat(alt));
+  if (state.velocityHistory.length > 30) {
+    state.velocityHistory.shift();
+    state.altitudeHistory.shift();
+  }
+  updateMiniVelChart();
+
+  // Map refresh badge
+  const badge = document.getElementById('mapRefreshBadge');
+  if (badge) badge.textContent = '↻ Updated ' + new Date().toLocaleTimeString();
 }
 
-function displayCards(coins) {
-  var container = document.getElementById("cardContainer");
-  container.innerHTML = "";
+async function getRegion(lat, lon) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+      { headers: { 'Accept-Language': 'en' } }
+    );
+    const d = await res.json();
+    const region = d.address?.country || d.address?.ocean || d.display_name?.split(',').pop() || 'International Waters';
+    setText('issRegion', region.trim().substring(0, 20));
+    setText('mapRegionLabel', region.trim());
+    document.getElementById('issRegion')?.classList.remove('skeleton');
+  } catch {
+    setText('issRegion', 'Int\'l Waters');
+  }
+}
 
-  if (coins.length === 0) {
-    container.innerHTML = "<p style='text-align:center;color:#888;padding:40px;'>No coins found.</p>";
+// ── CREW ─────────────────────────────────────────────────
+async function fetchCrew() {
+  try {
+    const res = await fetch('https://api.open-notify.org/astros.json');
+    const d = await res.json();
+    state.crewData = d.people;
+
+    // Filter ISS
+    const issCrew = d.people.filter(p => p.craft === 'ISS');
+    setText('crewCountBadge', issCrew.length + ' aboard');
+    setText('totalHumans', d.people.length);
+    setText('issCrewCount', issCrew.length);
+
+    // Render crew list (sidebar panel)
+    const list = document.getElementById('crewList');
+    list.innerHTML = issCrew.map((p, i) => `
+      <div class="crew-item">
+        <div class="crew-avatar">${['👨‍🚀','👩‍🚀'][i % 2]}</div>
+        <div>
+          <div class="crew-name">${p.name}</div>
+          <div class="crew-craft">${p.craft}</div>
+        </div>
+      </div>
+    `).join('');
+
+    // Crew section
+    loadCrewSection(d.people);
+  } catch {
+    document.getElementById('crewList').innerHTML = '<p style="color:var(--muted);font-size:.8rem;">Could not load crew data</p>';
+  }
+}
+
+function loadCrewSection(people) {
+  const grid = document.getElementById('crewSectionGrid');
+  if (!grid) return;
+  if (!people || people.length === 0) {
+    grid.innerHTML = '<p style="color:var(--muted)">Loading crew...</p>';
     return;
   }
-
-  coins.forEach(function(coin) {
-    var card = document.createElement("div");
-    card.className = "card";
-
-    var change = coin.price_change_percentage_24h;
-    var changeClass = change >= 0 ? "up" : "down";
-    var changeSymbol = change >= 0 ? "▲" : "▼";
-    var isFav = favorites.includes(coin.id);
-
-    card.innerHTML =
-      '<div class="card-top">' +
-        '<div class="coin-left">' +
-          '<img src="' + coin.image + '" alt="' + coin.name + '" />' +
-          '<div>' +
-            '<div class="coin-name">' + coin.name + '</div>' +
-            '<div class="coin-symbol">' + coin.symbol + '</div>' +
-          '</div>' +
-        '</div>' +
-        '<div style="display:flex;gap:6px;align-items:center;">' +
-          '<span class="rank">#' + coin.market_cap_rank + '</span>' +
-          '<button class="fav-btn ' + (isFav ? 'active' : '') + '" onclick="toggleFavorite(\'' + coin.id + '\')" title="Save to favorites">❤️</button>' +
-        '</div>' +
-      '</div>' +
-
-      '<div class="price">$' + formatPrice(coin.current_price) + '</div>' +
-      '<span class="change ' + changeClass + '">' + changeSymbol + ' ' + Math.abs(change).toFixed(2) + '%</span>' +
-
-      '<div class="stats">' +
-        '<div class="stat-item">' +
-          '<div class="stat-label">Market Cap</div>' +
-          '<div class="stat-value">' + formatBig(coin.market_cap) + '</div>' +
-        '</div>' +
-        '<div class="stat-item">' +
-          '<div class="stat-label">24h Volume</div>' +
-          '<div class="stat-value">' + formatBig(coin.total_volume) + '</div>' +
-        '</div>' +
-        '<div class="stat-item">' +
-          '<div class="stat-label">All-Time High</div>' +
-          '<div class="stat-value">$' + formatPrice(coin.ath) + '</div>' +
-        '</div>' +
-        '<div class="stat-item">' +
-          '<div class="stat-label">Circulating Supply</div>' +
-          '<div class="stat-value">' + formatBig(coin.circulating_supply) + '</div>' +
-        '</div>' +
-      '</div>';
-
-    container.appendChild(card);
-  });
+  const avatars = ['👨‍🚀','👩‍🚀','🧑‍🚀'];
+  grid.innerHTML = people.map((p, i) => `
+    <div class="crew-section-card">
+      <div class="crew-section-avatar">${avatars[i % 3]}</div>
+      <div class="crew-section-name">${p.name}</div>
+      <div class="crew-section-craft">${p.craft}</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:.3rem">Crew Member</div>
+    </div>
+  `).join('');
 }
 
-function toggleFavorite(coinId) {
-  if (favorites.includes(coinId)) {
-    favorites = favorites.filter(function(id) {
-      return id !== coinId;
+// ── NEXT PASS ─────────────────────────────────────────────
+async function getNextPass() {
+  const lat = document.getElementById('passLat').value;
+  const lon = document.getElementById('passLon').value;
+  const result = document.getElementById('passResult');
+  if (!lat || !lon) { result.textContent = 'Please enter coordinates.'; return; }
+  result.textContent = '⏳ Calculating...';
+  try {
+    const res = await fetch(`https://api.open-notify.org/iss-pass.json?lat=${lat}&lon=${lon}`);
+    const d = await res.json();
+    if (d.response && d.response.length > 0) {
+      const pass = d.response[0];
+      const t = new Date(pass.risetime * 1000);
+      result.innerHTML = `🛰️ Next pass: <b>${t.toUTCString()}</b><br>Duration: ${pass.duration}s`;
+    } else {
+      result.textContent = 'No pass data returned.';
+    }
+  } catch {
+    result.textContent = '⚠️ Pass API unavailable. Try: whattime.io/iss-pass';
+  }
+}
+
+// ── NEWS ─────────────────────────────────────────────────
+async function loadNews(reset = true) {
+  if (reset) {
+    state.newsOffset = 0;
+    state.newsArticles = [];
+  }
+  const grid = document.getElementById('newsGrid');
+  if (reset) grid.innerHTML = '<div class="skeleton-card"></div>'.repeat(6);
+
+  try {
+    const query = state.newsCategory === 'all' ? '' : `&search=${state.newsCategory}`;
+    const res = await fetch(`https://api.spaceflightnewsapi.net/v4/articles/?limit=12&offset=${state.newsOffset}${query}`);
+    const d = await res.json();
+    const articles = d.results || [];
+    state.newsArticles = reset ? articles : [...state.newsArticles, ...articles];
+    state.newsOffset += articles.length;
+    renderNews(state.newsArticles);
+    updateTicker(articles);
+    renderTrending(articles);
+  } catch {
+    grid.innerHTML = '<p style="color:var(--muted);padding:1rem">⚠️ Could not load news. Check connection.</p>';
+    showToast('⚠️ News feed unavailable', 'error');
+  }
+}
+
+function renderNews(articles) {
+  const query = document.getElementById('newsSearch').value.toLowerCase();
+  const filtered = query
+    ? articles.filter(a => a.title.toLowerCase().includes(query) || a.summary?.toLowerCase().includes(query))
+    : articles;
+  const grid = document.getElementById('newsGrid');
+  if (filtered.length === 0) {
+    grid.innerHTML = '<p style="color:var(--muted);padding:1rem">No articles found.</p>';
+    return;
+  }
+  grid.innerHTML = filtered.map(a => `
+    <div class="news-card" onclick="window.open('${a.url}','_blank')">
+      <img src="${a.image_url || 'https://images.unsplash.com/photo-1446776877081-d282a0f896e2?w=400&q=60'}"
+           alt="${a.title}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1446776877081-d282a0f896e2?w=400&q=60'" />
+      <div class="news-card-body">
+        <div class="news-source">${a.news_site || 'Space News'}</div>
+        <div class="news-title">${a.title}</div>
+        <div class="news-summary">${a.summary || ''}</div>
+        <div class="news-footer">
+          <span class="news-date">${new Date(a.published_at).toLocaleDateString()}</span>
+          <a class="news-read" href="${a.url}" target="_blank" onclick="event.stopPropagation()">Read →</a>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterNews() { renderNews(state.newsArticles); }
+
+function setNewsCategory(cat, btn) {
+  state.newsCategory = cat;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadNews();
+}
+
+function loadMoreNews() { loadNews(false); }
+
+function updateTicker(articles) {
+  if (!articles.length) return;
+  const text = articles.slice(0, 5).map(a => a.title).join('  ●  ');
+  document.getElementById('tickerText').textContent = text;
+}
+
+function renderTrending(articles) {
+  const tags = document.getElementById('trendingTags');
+  const keywords = ['ISS', 'SpaceX', 'NASA', 'Moon', 'Mars', 'Rocket', 'Starship', 'Crew'];
+  tags.innerHTML = keywords.map(k => `<span class="trending-tag" onclick="setNewsCategory('${k}',document.createElement('button'))">${k}</span>`).join('');
+}
+
+// ── CHARTS ───────────────────────────────────────────────
+function initCharts() {
+  Chart.defaults.color = '#64748b';
+  Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+
+  // Mini velocity chart (tracker page)
+  const velCtx = document.getElementById('velocityChart')?.getContext('2d');
+  if (velCtx) {
+    state.charts.vel = new Chart(velCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Velocity km/h',
+          data: [],
+          borderColor: '#00d4ff',
+          backgroundColor: 'rgba(0,212,255,0.08)',
+          tension: 0.4,
+          fill: true,
+          pointRadius: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { display: false },
+          y: { ticks: { color: '#64748b', font: { size: 10 } } },
+        },
+      },
     });
-  } else {
-    favorites.push(coinId);
-  }
-  applyAll();
-}
-
-function toggleTheme() {
-  isLightMode = !isLightMode;
-  var body = document.getElementById("body");
-  var btn = document.getElementById("themeBtn");
-
-  if (isLightMode) {
-    body.classList.add("light");
-    btn.textContent = "🌙 Dark Mode";
-  } else {
-    body.classList.remove("light");
-    btn.textContent = "☀️ Light Mode";
   }
 }
 
-function formatPrice(value) {
-  if (!value) return "N/A";
-  if (value >= 1) return value.toLocaleString("en-US", { maximumFractionDigits: 2 });
-  return value.toFixed(6);
+function updateMiniVelChart() {
+  const chart = state.charts.vel;
+  if (!chart) return;
+  chart.data.labels = state.velocityHistory.map((_, i) => i);
+  chart.data.datasets[0].data = state.velocityHistory;
+  chart.update('none');
 }
 
-function formatBig(value) {
-  if (!value) return "N/A";
-  if (value >= 1000000000000) return "$" + (value / 1000000000000).toFixed(2) + "T";
-  if (value >= 1000000000)    return "$" + (value / 1000000000).toFixed(2) + "B";
-  if (value >= 1000000)       return "$" + (value / 1000000).toFixed(2) + "M";
-  return "$" + value.toLocaleString();
+function refreshAnalyticsCharts() {
+  // Altitude chart
+  const altCtx = document.getElementById('altitudeChart')?.getContext('2d');
+  if (altCtx && !state.charts.alt) {
+    state.charts.alt = new Chart(altCtx, {
+      type: 'line',
+      data: {
+        labels: state.altitudeHistory.map((_, i) => i),
+        datasets: [{
+          label: 'Altitude km',
+          data: state.altitudeHistory,
+          borderColor: '#7b5ea7',
+          backgroundColor: 'rgba(123,94,167,0.1)',
+          tension: 0.4,
+          fill: true,
+          pointRadius: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { display: false } },
+      },
+    });
+  } else if (state.charts.alt) {
+    state.charts.alt.data.labels = state.altitudeHistory.map((_, i) => i);
+    state.charts.alt.data.datasets[0].data = state.altitudeHistory;
+    state.charts.alt.update('none');
+  }
+
+  // Orbit coverage pie
+  const orbitCtx = document.getElementById('orbitChart')?.getContext('2d');
+  if (orbitCtx && !state.charts.orbit) {
+    state.charts.orbit = new Chart(orbitCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Daylight', 'Eclipse'],
+        datasets: [{ data: [55, 45], backgroundColor: ['#00d4ff', '#7b5ea7'], borderWidth: 0 }],
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } },
+    });
+  }
+
+  // Live velocity chart (analytics)
+  const liveCtx = document.getElementById('liveVelChart')?.getContext('2d');
+  if (liveCtx && !state.charts.liveVel) {
+    state.charts.liveVel = new Chart(liveCtx, {
+      type: 'bar',
+      data: {
+        labels: state.velocityHistory.map((_, i) => i),
+        datasets: [{
+          label: 'Velocity',
+          data: state.velocityHistory,
+          backgroundColor: 'rgba(0,212,255,0.3)',
+          borderColor: '#00d4ff',
+          borderWidth: 1,
+        }],
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { display: false } },
+      },
+    });
+  } else if (state.charts.liveVel) {
+    state.charts.liveVel.data.labels = state.velocityHistory.map((_, i) => i);
+    state.charts.liveVel.data.datasets[0].data = state.velocityHistory;
+    state.charts.liveVel.update('none');
+  }
 }
 
-loadData();
+// ── AI SUMMARY ────────────────────────────────────────────
+async function generateSummary() {
+  const box = document.getElementById('aiSummary');
+  const btn = document.getElementById('summaryBtn');
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  box.innerHTML = '<span class="typing-dots"><span></span><span></span><span></span></span>';
+
+  const context = buildContext();
+  const prompt = `Give a concise 3-sentence dashboard summary of the current ISS status and top space news:\n${context}`;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: prompt, context }),
+    });
+    const d = await res.json();
+    box.innerHTML = `<p>${d.reply || 'Summary unavailable.'}</p>`;
+  } catch {
+    box.innerHTML = '<p style="color:var(--muted)">Summary unavailable — API not connected.</p>';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Generate Summary';
+}
+
+// ── CHATBOT ───────────────────────────────────────────────
+function toggleChatbot() {
+  document.getElementById('chatbotPanel').classList.toggle('open');
+}
+
+function handleChatKey(e) {
+  if (e.key === 'Enter') sendChatMessage();
+}
+
+function sendSuggestion(text) {
+  document.getElementById('chatInput').value = text;
+  sendChatMessage();
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  appendMessage('user', msg);
+  hideSuggestions();
+
+  // Typing indicator
+  const typingId = appendTyping();
+  const context = buildContext();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, context }),
+    });
+    const d = await res.json();
+    removeTyping(typingId);
+    appendMessage('bot', d.reply || 'I could not get a response. Please try again.');
+  } catch {
+    removeTyping(typingId);
+    appendMessage('bot', '⚠️ Could not connect to OrbitAI. Ensure the API is deployed.');
+  }
+}
+
+function buildContext() {
+  const iss = state.issData;
+  const issStr = iss
+    ? `ISS Position: Lat ${parseFloat(iss.latitude).toFixed(2)}°, Lon ${parseFloat(iss.longitude).toFixed(2)}°, Altitude ${parseFloat(iss.altitude).toFixed(1)} km, Velocity ${parseFloat(iss.velocity).toFixed(0)} km/h, Visibility: ${iss.visibility || 'N/A'}`
+    : 'ISS data not yet loaded.';
+
+  const crewStr = state.crewData.length
+    ? 'People in space: ' + state.crewData.map(p => `${p.name} (${p.craft})`).join(', ')
+    : 'Crew data not loaded.';
+
+  const newsStr = state.newsArticles.slice(0, 5).map((a, i) =>
+    `${i + 1}. [${a.news_site}] ${a.title}`
+  ).join('\n');
+
+  return `${issStr}\n${crewStr}\nTop news:\n${newsStr || 'No news loaded.'}`;
+}
+
+function appendMessage(role, text) {
+  const msgs = document.getElementById('chatMessages');
+  const isBot = role === 'bot';
+  const div = document.createElement('div');
+  div.className = `chat-message ${isBot ? 'bot-message' : 'user-message'}`;
+  div.innerHTML = `
+    ${isBot ? '<div class="msg-avatar">🤖</div>' : ''}
+    <div class="msg-bubble"><p>${escapeHtml(text)}</p></div>
+    ${!isBot ? '<div class="msg-avatar">👤</div>' : ''}
+  `;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  state.chatHistory.push({ role, text });
+  return div;
+}
+
+function appendTyping() {
+  const msgs = document.getElementById('chatMessages');
+  const id = 'typing_' + Date.now();
+  const div = document.createElement('div');
+  div.id = id;
+  div.className = 'chat-message bot-message';
+  div.innerHTML = `<div class="msg-avatar">🤖</div><div class="msg-bubble"><span class="typing-dots"><span></span><span></span><span></span></span></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return id;
+}
+
+function removeTyping(id) {
+  document.getElementById(id)?.remove();
+}
+
+function hideSuggestions() {
+  const s = document.getElementById('chatSuggestions');
+  if (s) s.style.display = 'none';
+}
+
+// ── TOAST ─────────────────────────────────────────────────
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
+// ── AUTO REFRESH ──────────────────────────────────────────
+function startAutoRefresh() {
+  // ISS every 5 seconds
+  setInterval(fetchISSData, 5000);
+  // News every 5 minutes
+  setInterval(() => loadNews(), 300000);
+}
+
+// ── HELPERS ───────────────────────────────────────────────
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}

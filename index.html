@@ -1,57 +1,397 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Crypto Tracker</title>
+  <title>OrbitIQ — ISS Space Intelligence Dashboard</title>
+  <meta name="description" content="Real-time ISS tracking, space news aggregation, and AI-powered space intelligence chatbot. Monitor the International Space Station live." />
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  
+  <!-- Leaflet.js Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  
+  <!-- Main Stylesheet -->
   <link rel="stylesheet" href="style.css" />
 </head>
+<body>
 
-<body id="body">
-  <header>
-    <h1>💰 Crypto Tracker</h1>
-    <p>Live cryptocurrency prices</p>
-    <button id="themeBtn" onclick="toggleTheme()">🌙 Dark Mode</button>
-  </header>
+<!-- ═══════════════════════════════ STAR BACKGROUND ═══════════════════════════ -->
+<canvas id="starCanvas"></canvas>
 
+<!-- ═══════════════════════════════ TOAST CONTAINER ═══════════════════════════ -->
+<div id="toastContainer" aria-live="polite"></div>
 
-  <div class="controls">
+<!-- ═══════════════════════════════ LOADING SCREEN ═══════════════════════════ -->
+<div id="loadingScreen">
+  <div class="loader-content">
+    <div class="loader-ring"></div>
+    <div class="loader-inner-ring"></div>
+    <div class="loader-dot"></div>
+    <p class="loader-title">OrbitIQ</p>
+    <p class="loader-subtitle">Establishing Connection...</p>
+    <div class="loader-bar-wrap"><div class="loader-bar" id="loaderBar"></div></div>
+  </div>
+</div>
 
-    <input type="text" id="searchInput" placeholder="🔍 Search by name or symbol..." oninput="applyAll()" />
-
-
-    <select id="filterSelect" onchange="applyAll()">
-      <option value="all">All Coins</option>
-      <option value="gainers">📈 Gainers Only</option>
-      <option value="losers">📉 Losers Only</option>
-      <option value="top10">⭐ Top 10</option>
-      <option value="favorites">❤️ Favorites</option>
-    </select>
-
-
-    <select id="sortSelect" onchange="applyAll()">
-      <option value="rank">Sort: Rank</option>
-      <option value="price_high">Sort: Price High→Low</option>
-      <option value="price_low">Sort: Price Low→High</option>
-      <option value="change_high">Sort: Change High→Low</option>
-      <option value="change_low">Sort: Change Low→High</option>
-      <option value="name_az">Sort: Name A→Z</option>
-      <option value="name_za">Sort: Name Z→A</option>
-    </select>
-
-    <button onclick="loadData()">🔄 Refresh</button>
-
+<!-- ═══════════════════════════════ SIDEBAR ══════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <span class="logo-orbit"></span>
+      <span class="logo-dot"></span>
+    </div>
+    <div class="logo-text">
+      <span class="logo-name">OrbitIQ</span>
+      <span class="logo-tag">Space Intelligence</span>
+    </div>
   </div>
 
-  <p id="resultInfo" class="result-info"></p>
+  <nav class="sidebar-nav">
+    <button class="nav-item active" id="nav-tracker" onclick="switchSection('tracker')" title="ISS Tracker">
+      <span class="nav-icon">🛰️</span>
+      <span class="nav-label">ISS Tracker</span>
+    </button>
+    <button class="nav-item" id="nav-news" onclick="switchSection('news')" title="Space News">
+      <span class="nav-icon">📡</span>
+      <span class="nav-label">Space News</span>
+    </button>
+    <button class="nav-item" id="nav-analytics" onclick="switchSection('analytics')" title="Analytics">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">Analytics</span>
+    </button>
+    <button class="nav-item" id="nav-astronauts" onclick="switchSection('astronauts')" title="Crew">
+      <span class="nav-icon">👨‍🚀</span>
+      <span class="nav-label">Crew</span>
+    </button>
+  </nav>
 
-  <p id="loading">⏳ Loading data...</p>
-  <p id="errorMsg" class="hidden">❌ Failed to load. Check your connection.</p>
+  <div class="sidebar-status">
+    <div class="status-dot live"></div>
+    <span>Live Feed Active</span>
+  </div>
+</aside>
 
-  <div id="cardContainer"></div>
+<!-- ═══════════════════════════════ MAIN CONTENT ═════════════════════════════ -->
+<main class="main-content" id="mainContent">
 
-  <script src="script.js"></script>
+  <!-- TOP NAVBAR -->
+  <header class="topnav">
+    <button class="hamburger" id="hamburger" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+      <span></span><span></span><span></span>
+    </button>
+
+    <!-- Breaking News Ticker -->
+    <div class="news-ticker-wrap">
+      <span class="ticker-label">BREAKING</span>
+      <div class="ticker-track" id="tickerTrack">
+        <span class="ticker-text" id="tickerText">Initializing news feed...</span>
+      </div>
+    </div>
+
+    <!-- UTC Clock -->
+    <div class="utc-clock">
+      <span class="clock-label">UTC</span>
+      <span class="clock-time" id="utcClock">--:--:--</span>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="conn-status" id="connStatus">
+      <span class="conn-dot"></span>
+      <span class="conn-label">Connected</span>
+    </div>
+  </header>
+
+  <!-- ═══════ SECTION: ISS TRACKER ═══════ -->
+  <section class="section active" id="section-tracker">
+
+    <!-- Section Header -->
+    <div class="section-header">
+      <h1 class="section-title">
+        <span class="title-icon">🛰️</span>
+        Live ISS Tracker
+        <span class="live-badge">LIVE</span>
+      </h1>
+      <p class="section-subtitle">Real-time International Space Station telemetry &amp; orbital data</p>
+    </div>
+
+    <!-- ISS Stats Row -->
+    <div class="stats-grid" id="issStatsGrid">
+      <div class="stat-card" id="stat-lat">
+        <div class="stat-icon">📍</div>
+        <div class="stat-label">Latitude</div>
+        <div class="stat-value skeleton" id="issLat">--°</div>
+      </div>
+      <div class="stat-card" id="stat-lon">
+        <div class="stat-icon">🌐</div>
+        <div class="stat-label">Longitude</div>
+        <div class="stat-value skeleton" id="issLon">--°</div>
+      </div>
+      <div class="stat-card" id="stat-alt">
+        <div class="stat-icon">⬆️</div>
+        <div class="stat-label">Altitude</div>
+        <div class="stat-value skeleton" id="issAlt">-- km</div>
+      </div>
+      <div class="stat-card" id="stat-vel">
+        <div class="stat-icon">⚡</div>
+        <div class="stat-label">Velocity</div>
+        <div class="stat-value skeleton" id="issVel">-- km/h</div>
+      </div>
+      <div class="stat-card" id="stat-vis">
+        <div class="stat-icon">👁️</div>
+        <div class="stat-label">Visibility</div>
+        <div class="stat-value skeleton" id="issVis">--</div>
+      </div>
+      <div class="stat-card" id="stat-region">
+        <div class="stat-icon">🗺️</div>
+        <div class="stat-label">Region</div>
+        <div class="stat-value skeleton" id="issRegion">--</div>
+      </div>
+    </div>
+
+    <!-- Map + Crew Row -->
+    <div class="tracker-main-row">
+
+      <!-- MAP -->
+      <div class="map-card glass-card">
+        <div class="card-header">
+          <span class="card-title">🗺️ Orbital Map</span>
+          <span class="refresh-badge" id="mapRefreshBadge">↻ Refreshing...</span>
+        </div>
+        <div id="issMap"></div>
+        <div class="map-overlay-info">
+          <div class="overlay-item">
+            <span class="overlay-icon">🌍</span>
+            <span id="mapRegionLabel">Calculating...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CREW PANEL -->
+      <div class="crew-card glass-card">
+        <div class="card-header">
+          <span class="card-title">👨‍🚀 ISS Crew</span>
+          <span class="crew-count-badge" id="crewCountBadge">-- aboard</span>
+        </div>
+        <div class="crew-list" id="crewList">
+          <div class="skeleton-list">
+            <div class="skeleton-item"></div>
+            <div class="skeleton-item"></div>
+            <div class="skeleton-item"></div>
+          </div>
+        </div>
+        <div class="card-header" style="margin-top:1rem; border-top:1px solid rgba(255,255,255,0.06); padding-top:1rem;">
+          <span class="card-title">⏱️ Next ISS Pass</span>
+        </div>
+        <div class="pass-info" id="passInfo">
+          <p class="pass-note">Enter your coordinates to calculate next ISS pass.</p>
+          <div class="pass-inputs">
+            <input type="number" id="passLat" placeholder="Your Latitude" step="0.01" />
+            <input type="number" id="passLon" placeholder="Your Longitude" step="0.01" />
+            <button class="btn-primary" onclick="getNextPass()">Calculate</button>
+          </div>
+          <div class="pass-result" id="passResult"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Orbit Trail Info -->
+    <div class="orbit-info-row">
+      <div class="glass-card orbit-detail-card">
+        <div class="card-header">
+          <span class="card-title">🌀 Orbital Parameters</span>
+        </div>
+        <div class="orbit-details-grid">
+          <div class="orbit-param"><span class="param-label">Orbital Period</span><span class="param-val">~92 min</span></div>
+          <div class="orbit-param"><span class="param-label">Orbits/Day</span><span class="param-val">~15.5</span></div>
+          <div class="orbit-param"><span class="param-label">Inclination</span><span class="param-val">51.6°</span></div>
+          <div class="orbit-param"><span class="param-label">Perigee</span><span class="param-val">~408 km</span></div>
+          <div class="orbit-param"><span class="param-label">Apogee</span><span class="param-val">~422 km</span></div>
+          <div class="orbit-param"><span class="param-label">Eccentricity</span><span class="param-val">0.00034</span></div>
+        </div>
+      </div>
+      <div class="glass-card speed-chart-card">
+        <div class="card-header">
+          <span class="card-title">📈 Velocity History</span>
+        </div>
+        <canvas id="velocityChart" height="120"></canvas>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ═══════ SECTION: SPACE NEWS ═══════ -->
+  <section class="section" id="section-news">
+
+    <div class="section-header">
+      <h1 class="section-title">
+        <span class="title-icon">📡</span>
+        Space News Hub
+      </h1>
+      <p class="section-subtitle">Latest space exploration, science &amp; astronomy headlines</p>
+    </div>
+
+    <!-- News Controls -->
+    <div class="news-controls glass-card">
+      <input type="text" id="newsSearch" placeholder="🔍 Search news..." oninput="filterNews()" />
+      <div class="news-filter-btns">
+        <button class="filter-btn active" onclick="setNewsCategory('all', this)">All</button>
+        <button class="filter-btn" onclick="setNewsCategory('ISS', this)">ISS</button>
+        <button class="filter-btn" onclick="setNewsCategory('SpaceX', this)">SpaceX</button>
+        <button class="filter-btn" onclick="setNewsCategory('NASA', this)">NASA</button>
+        <button class="filter-btn" onclick="setNewsCategory('Moon', this)">Moon</button>
+        <button class="filter-btn" onclick="setNewsCategory('Mars', this)">Mars</button>
+      </div>
+      <button class="btn-refresh" onclick="loadNews()">↻ Refresh</button>
+    </div>
+
+    <!-- Trending -->
+    <div class="trending-row" id="trendingRow">
+      <span class="trending-label">🔥 Trending:</span>
+      <div class="trending-tags" id="trendingTags"></div>
+    </div>
+
+    <!-- News Grid -->
+    <div class="news-grid" id="newsGrid">
+      <!-- News cards injected by JS -->
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </div>
+
+    <!-- Load More -->
+    <div class="load-more-wrap">
+      <button class="btn-load-more" id="loadMoreBtn" onclick="loadMoreNews()">Load More Stories</button>
+    </div>
+
+  </section>
+
+  <!-- ═══════ SECTION: ANALYTICS ═══════ -->
+  <section class="section" id="section-analytics">
+
+    <div class="section-header">
+      <h1 class="section-title">
+        <span class="title-icon">📊</span>
+        Analytics Center
+      </h1>
+      <p class="section-subtitle">ISS orbital data visualizations &amp; AI-generated dashboard summary</p>
+    </div>
+
+    <div class="analytics-grid">
+      <div class="glass-card analytics-card full-width">
+        <div class="card-header">
+          <span class="card-title">🤖 AI Dashboard Summary</span>
+          <button class="btn-sm" id="summaryBtn" onclick="generateSummary()">Generate Summary</button>
+        </div>
+        <div class="ai-summary-box" id="aiSummary">
+          <p class="ai-placeholder">Click "Generate Summary" to get an AI-powered overview of current dashboard data.</p>
+        </div>
+      </div>
+
+      <div class="glass-card analytics-card">
+        <div class="card-header"><span class="card-title">📍 Altitude Track</span></div>
+        <canvas id="altitudeChart" height="200"></canvas>
+      </div>
+
+      <div class="glass-card analytics-card">
+        <div class="card-header"><span class="card-title">🌍 Orbit Coverage</span></div>
+        <canvas id="orbitChart" height="200"></canvas>
+      </div>
+
+      <div class="glass-card analytics-card full-width">
+        <div class="card-header"><span class="card-title">⚡ Live Velocity (60s window)</span></div>
+        <canvas id="liveVelChart" height="150"></canvas>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ═══════ SECTION: CREW ═══════ -->
+  <section class="section" id="section-astronauts">
+
+    <div class="section-header">
+      <h1 class="section-title">
+        <span class="title-icon">👨‍🚀</span>
+        Space Crew Directory
+      </h1>
+      <p class="section-subtitle">All humans currently in space</p>
+    </div>
+
+    <div class="crew-section-grid" id="crewSectionGrid">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </div>
+
+    <div class="glass-card mission-stats-card" style="margin-top:1.5rem;">
+      <div class="card-header"><span class="card-title">🚀 Mission Stats</span></div>
+      <div class="mission-stats-grid">
+        <div class="mstat"><span class="mstat-val" id="totalHumans">--</span><span class="mstat-label">Humans in Space</span></div>
+        <div class="mstat"><span class="mstat-val" id="issCrewCount">--</span><span class="mstat-label">Aboard ISS</span></div>
+        <div class="mstat"><span class="mstat-val">25+</span><span class="mstat-label">Years of ISS</span></div>
+        <div class="mstat"><span class="mstat-val">19</span><span class="mstat-label">Nations Participated</span></div>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<!-- ═══════════════════════════════ AI CHATBOT ════════════════════════════════ -->
+<div class="chatbot-fab" id="chatbotFab" onclick="toggleChatbot()" title="AI Space Assistant">
+  <span class="fab-icon">🤖</span>
+  <span class="fab-pulse"></span>
+</div>
+
+<div class="chatbot-panel glass-card" id="chatbotPanel">
+  <div class="chat-header">
+    <div class="chat-avatar">
+      <span>🤖</span>
+    </div>
+    <div class="chat-title-wrap">
+      <span class="chat-title">OrbitAI</span>
+      <span class="chat-subtitle">Powered by dashboard data</span>
+    </div>
+    <button class="chat-close" onclick="toggleChatbot()" aria-label="Close chat">✕</button>
+  </div>
+
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-message bot-message">
+      <div class="msg-avatar">🤖</div>
+      <div class="msg-bubble">
+        <p>Hello! I'm OrbitAI 🚀</p>
+        <p>I can answer questions about the <strong>current ISS position, crew, speed</strong>, and <strong>latest space news</strong> from this dashboard.</p>
+        <p>What would you like to know?</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-suggestions" id="chatSuggestions">
+    <button class="suggestion-chip" onclick="sendSuggestion('Where is the ISS right now?')">📍 ISS position?</button>
+    <button class="suggestion-chip" onclick="sendSuggestion('How fast is the ISS moving?')">⚡ ISS speed?</button>
+    <button class="suggestion-chip" onclick="sendSuggestion('Who is on the ISS right now?')">👨‍🚀 Current crew?</button>
+    <button class="suggestion-chip" onclick="sendSuggestion('What is the latest space news?')">📰 Latest news?</button>
+  </div>
+
+  <div class="chat-input-row">
+    <input type="text" id="chatInput" class="chat-input" placeholder="Ask about ISS or space news..." onkeydown="handleChatKey(event)" />
+    <button class="chat-send" id="chatSendBtn" onclick="sendChatMessage()">
+      <span>➤</span>
+    </button>
+  </div>
+</div>
+
+<!-- Main Script -->
+<script src="script.js"></script>
 </body>
-
 </html>
